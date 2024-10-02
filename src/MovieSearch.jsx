@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 
-const API_URL = "http://www.omdbapi.com/?apikey=fd416966";
+const API_URL = "https://www.omdbapi.com/?apikey=fd416966";
 
 const MovieCard = ({ movie }) => (
   <div className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105">
     <img
-      src={movie.Poster}
+      src={
+        movie.Poster !== "N/A"
+          ? movie.Poster
+          : "https://via.placeholder.com/400x600?text=No+Poster"
+      }
       alt={movie.Title}
       className="w-full h-64 object-cover"
     />
@@ -21,16 +25,42 @@ const MovieCard = ({ movie }) => (
 const MovieSearch = () => {
   const [movies, setMovies] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const searchMovies = async (title) => {
-    const response = await fetch(`${API_URL}&s=${title}`);
-    const data = await response.json();
-    setMovies(data.Search || []);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}&s=${encodeURIComponent(title)}`);
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      const data = await response.json();
+      if (data.Response === "True") {
+        setMovies(data.Search);
+      } else {
+        setError(data.Error);
+        setMovies([]);
+      }
+    } catch (err) {
+      setError("An error occurred while fetching movies. Please try again.");
+      setMovies([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     searchMovies("Jurassic Park");
   }, []);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      searchMovies(searchTerm);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -57,7 +87,7 @@ const MovieSearch = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="flex justify-center mb-8">
+        <form onSubmit={handleSearch} className="flex justify-center mb-8">
           <div className="relative w-full max-w-xl">
             <input
               type="text"
@@ -67,13 +97,16 @@ const MovieSearch = () => {
               className="w-full py-2 px-4 pr-10 rounded-full bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400"
             />
             <button
-              onClick={() => searchMovies(searchTerm)}
+              type="submit"
               className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-green-400"
             >
               <Search size={20} />
             </button>
           </div>
-        </div>
+        </form>
+
+        {loading && <p className="text-center">Loading...</p>}
+        {error && <p className="text-center text-red-500">{error}</p>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {movies.map((movie) => (
